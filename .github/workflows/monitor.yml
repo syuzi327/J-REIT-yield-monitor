@@ -36,7 +36,7 @@ jobs:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
         cd src
-        python etf_monitor_jp.py
+        python J-REIT_monitor.py
     
     - name: Commit and push state file (JP)
       run: |
