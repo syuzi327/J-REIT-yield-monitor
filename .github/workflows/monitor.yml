@@ -2,9 +2,9 @@ name: ETF Yield Monitor (JP)
 
 on:
   schedule:
-    # 毎日日本時間23:00（UTC 14:00）に実行
+    # 毎日日本時間20:00 (UTC 11:00)に実行
     # 東証の取引終了（15:00）後のデータ反映を待つ
-    - cron: '0 14 * * *'
+    - cron: '0 11 * * *'
   
   workflow_dispatch:  # 手動実行も可能
 
