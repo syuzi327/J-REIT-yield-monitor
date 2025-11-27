@@ -108,7 +108,6 @@ def should_update_baseline(ticker, state, config):
     Returns:
         tuple: (should_update: bool, last_year: int, is_initial: bool)
     """
-    from datetime import datetime
     
     current_year = datetime.now().year
     
@@ -134,18 +133,34 @@ def should_update_baseline(ticker, state, config):
     return False, None, False
 
 
-def get_next_saturday():
-    """次の土曜日の日付を取得"""
-    from datetime import datetime, timedelta
+def get_next_reminder_saturday(base_date):
+    """
+    次回のリマインダー土曜日を取得
     
-    today = datetime.now().date()
-    days_until_saturday = (5 - today.weekday()) % 7  # 土曜日は5
+    Args:
+        base_date: 基準日（date型またはISO文字列）
     
+    Returns:
+        str: 次回リマインダー日（ISO形式）
+    """
+    
+    # 文字列の場合はdateに変換
+    if isinstance(base_date, str):
+        base_date = datetime.fromisoformat(base_date).date()
+    
+    # 基準日から7日後
+    seven_days_later = base_date + timedelta(days=7)
+    
+    # 7日後が土曜日なら、その日が次回
+    if seven_days_later.weekday() == 5:
+        return seven_days_later.isoformat()
+    
+    # そうでなければ、7日後以降の最初の土曜日を探す
+    days_until_saturday = (5 - seven_days_later.weekday()) % 7
     if days_until_saturday == 0:
-        # 今日が土曜日の場合は次の土曜日
         days_until_saturday = 7
     
-    next_saturday = today + timedelta(days=days_until_saturday)
+    next_saturday = seven_days_later + timedelta(days=days_until_saturday)
     return next_saturday.isoformat()
 
 
@@ -163,7 +178,6 @@ def get_year_average_from_history(ticker, year):
         float or None: 年間平均利回り
     """
     try:
-        from datetime import datetime
         
         etf = yf.Ticker(ticker)
         
@@ -227,7 +241,6 @@ def update_baseline(ticker, last_year, state, config, is_initial=False):
     Returns:
         dict: 更新後のbaseline情報（失敗時はNone）
     """
-    from datetime import datetime
     
     current_year = datetime.now().year
     
@@ -388,7 +401,6 @@ def should_notify(ticker, current_yield, threshold, state, etf_data):
     Returns:
         tuple: (should_notify: bool, notification_type: str, reason: str)
     """
-    from datetime import datetime
     
     today = datetime.now().date()
     today_iso = today.isoformat()
@@ -556,7 +568,8 @@ def create_discord_embed(notification_type, ticker, etf_data, threshold, reason,
         
         # initial_aboveの場合は次回リマインダー日を追加
         if notification_type == "initial_above":
-            next_saturday = get_next_saturday()
+            today = datetime.now().date()
+            next_saturday = get_next_reminder_saturday(today)
             fields.append({
                 "name": "📅 次回リマインダー",
                 "value": f"{next_saturday} (土曜日)",
