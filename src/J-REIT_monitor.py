@@ -420,20 +420,7 @@ def should_notify(ticker, current_yield, threshold, state, etf_data):
     last_notified = prev_state.get("last_notified")
     last_reminded = prev_state.get("last_reminded")
     last_update_date = prev_state.get("last_trade_date")
-    
-    # 取引日チェック: 前回と同じ日付なら更新しない（土日・祝日対策）
-    if last_trade_date and last_trade_date == last_update_date:
-        print(f"   💤 取引なし（前回: {last_update_date}）- 通知判定スキップ")
-        return False, "no_trade", "取引日なし"
-    
-    # 通常の上抜け検知
-    if prev_status == "below" and current_yield >= threshold:
-        return True, "crossed_above", f"閾値上抜け: {prev_yield:.2f}% → {current_yield:.2f}%"
-    
-    # 通常の下抜け検知
-    if prev_status == "above" and current_yield < threshold:
-        return True, "crossed_below", f"閾値下抜け: {prev_yield:.2f}% → {current_yield:.2f}%"
-    
+
     # 閾値超過中の週次リマインダー（土曜日のみ）
     if prev_status == "above" and current_yield >= threshold:
         # 今日が土曜日かチェック
@@ -448,6 +435,19 @@ def should_notify(ticker, current_yield, threshold, state, etf_data):
             else:
                 # last_remindedがない場合（初回above後の最初の土曜日）
                 return True, "reminder", "週次リマインダー（土曜日）"
+    
+    # 取引日チェック: 前回と同じ日付なら更新しない（土日・祝日対策）
+    if last_trade_date and last_trade_date == last_update_date:
+        print(f"   💤 取引なし（前回: {last_update_date}）- 通知判定スキップ")
+        return False, "no_trade", "取引日なし"
+    
+    # 通常の上抜け検知
+    if prev_status == "below" and current_yield >= threshold:
+        return True, "crossed_above", f"閾値上抜け: {prev_yield:.2f}% → {current_yield:.2f}%"
+    
+    # 通常の下抜け検知
+    if prev_status == "above" and current_yield < threshold:
+        return True, "crossed_below", f"閾値下抜け: {prev_yield:.2f}% → {current_yield:.2f}%"
     
     return False, None, "通知不要"
 
