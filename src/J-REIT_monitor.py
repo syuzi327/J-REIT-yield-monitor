@@ -7,6 +7,7 @@ ETF配当利回り監視Bot（1343 円建て専用）- 最終版
 - TTM方式で毎日の利回りを取得（信頼性が高い）
 - 年越し初回実行時のみ前年実績を計算してbaseline更新
 - 欠落期間がある場合は過去データを自動補完
+- 取引なしの日はstate更新をスキップ（配当落ち異常値の回避）
 """
 
 import os
@@ -126,7 +127,11 @@ def should_update_baseline(ticker, state, config):
     
     last_year = state[ticker]["last_year"]
     
-    # 年が変わっている場合
+    # すでに今年のデータで更新済み（年度更新の重複実行を防ぐ）
+    if last_year == current_year:
+        return False, None, False
+    
+    # 年が変わっている場合（前年のデータで更新）
     if last_year < current_year:
         return True, last_year, False
     
@@ -402,7 +407,8 @@ def should_notify(ticker, current_yield, threshold, state, etf_data):
         tuple: (should_notify: bool, notification_type: str, reason: str)
     """
     
-    today = datetime.now().date()
+    jst = timezone(timedelta(hours=9))
+    today = datetime.now(jst).date()
     today_iso = today.isoformat()
     last_trade_date = etf_data.get("last_trade_date")
     
@@ -421,6 +427,11 @@ def should_notify(ticker, current_yield, threshold, state, etf_data):
     last_reminded = prev_state.get("last_reminded")
     last_update_date = prev_state.get("last_trade_date")
 
+    # 取引日チェック: 前回と同じ日付なら更新しない（土日・祝日・配当落ち異常値対策）
+    if last_trade_date and last_trade_date == last_update_date:
+        print(f"   💤 取引なし（前回: {last_update_date}）- データ更新スキップ")
+        return False, "no_trade", "取引日なし"
+
     # 閾値超過中の週次リマインダー（土曜日のみ）
     if prev_status == "above" and current_yield >= threshold:
         # 今日が土曜日かチェック
@@ -429,17 +440,26 @@ def should_notify(ticker, current_yield, threshold, state, etf_data):
                 last_reminded_date = datetime.fromisoformat(last_reminded).date()
                 
                 # 前回のリマインダーから7日以上経過しているか
-                days_since_reminder = (today - last_reminded_date).days
-                if days_since_reminder >= 7:
-                    return True, "reminder", f"週次リマインダー（土曜日、継続{days_since_reminder}日目）"
+                days_since_last_reminder = (today - last_reminded_date).days
+                if days_since_last_reminder >= 7:
+                    # 閾値上抜けからの累積日数を計算
+                    crossed_above_date = prev_state.get("crossed_above_date")
+                    if crossed_above_date:
+                        crossed_date = datetime.fromisoformat(crossed_above_date).date()
+                        days_since_crossed = (today - crossed_date).days
+                        return True, "reminder", f"週次リマインダー（土曜日、継続{days_since_crossed}日目）"
+                    else:
+                        # crossed_above_dateがない場合（データ不整合）
+                        return True, "reminder", f"週次リマインダー（土曜日、継続{days_since_last_reminder}日目）"
             else:
                 # last_remindedがない場合（初回above後の最初の土曜日）
-                return True, "reminder", "週次リマインダー（土曜日）"
-    
-    # 取引日チェック: 前回と同じ日付なら更新しない（土日・祝日対策）
-    if last_trade_date and last_trade_date == last_update_date:
-        print(f"   💤 取引なし（前回: {last_update_date}）- 通知判定スキップ")
-        return False, "no_trade", "取引日なし"
+                crossed_above_date = prev_state.get("crossed_above_date")
+                if crossed_above_date:
+                    crossed_date = datetime.fromisoformat(crossed_above_date).date()
+                    days_since_crossed = (today - crossed_date).days
+                    return True, "reminder", f"週次リマインダー（土曜日、継続{days_since_crossed}日目）"
+                else:
+                    return True, "reminder", "週次リマインダー（土曜日）"
     
     # 通常の上抜け検知
     if prev_status == "below" and current_yield >= threshold:
@@ -678,6 +698,8 @@ def main():
                     "years": new_baseline_data["years"],
                     "yield": new_baseline_data["yield"]
                 }
+                # last_yearを今年に更新（年度更新の重複を防ぐ）
+                state[ticker]["last_year"] = current_year
                 baseline_update_success = True
         
         # 閾値を取得（更新されたbaselineを使用）
@@ -717,6 +739,11 @@ def main():
         )
         
         print(f"判定: {reason}")
+        
+        # 取引日なしの場合はstate更新をスキップ
+        if notification_type == "no_trade":
+            print()
+            continue
         
         # 初回起動の通知
         if notification_type in ["initial", "initial_above"]:
