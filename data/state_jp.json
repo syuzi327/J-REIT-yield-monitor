@@ -3,13 +3,13 @@
     "status": "below",
     "current_yield": 4.02,
     "threshold": 4.2,
-    "last_trade_date": "2026-01-21",
+    "last_trade_date": "2026-01-22",
     "last_year": 2026,
     "baseline": {
       "years": 13,
       "yield": 4.2
     },
-    "last_checked": "2026-01-21",
+    "last_checked": "2026-01-22",
     "last_notified": "2025-11-18",
     "last_reminded": null,
     "crossed_above_date": null
