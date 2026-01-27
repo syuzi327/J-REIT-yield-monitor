@@ -1,15 +1,15 @@
 {
   "1343.T": {
     "status": "below",
-    "current_yield": 4.07,
+    "current_yield": 4.09,
     "threshold": 4.2,
-    "last_trade_date": "2026-01-26",
+    "last_trade_date": "2026-01-27",
     "last_year": 2026,
     "baseline": {
       "years": 13,
       "yield": 4.2
     },
-    "last_checked": "2026-01-26",
+    "last_checked": "2026-01-27",
     "last_notified": "2025-11-18",
     "last_reminded": null,
     "crossed_above_date": null
