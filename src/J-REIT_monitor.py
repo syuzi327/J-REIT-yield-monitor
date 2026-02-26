@@ -667,16 +667,50 @@ def main():
         etf_data = get_etf_data(ticker)
         if not etf_data:
             print(f"⚠️ {ticker} のデータ取得失敗\n")
-            
-            # ETFデータ取得失敗の通知
-            error_embed = create_discord_embed(
-                "error_etf_data",
-                ticker,
-                None,
-                0,
-                f"{ETFS[ticker]['name']} のデータ取得に失敗しました。yfinance APIの問題、またはティッカーシンボルの変更が考えられます。この銘柄の監視をスキップします。"
-            )
-            send_discord_notification(error_embed)
+
+            today_date = datetime.now().date()
+            is_weekend = today_date.weekday() >= 5  # 土日
+
+            # 土曜日リマインダーチェック（前回保存データを使用）
+            if today_date.weekday() == 5 and ticker in state:
+                prev = state[ticker]
+                if prev.get("status") == "above":
+                    last_reminded = prev.get("last_reminded")
+                    should_remind = False
+                    if last_reminded:
+                        days_since = (today_date - datetime.fromisoformat(last_reminded).date()).days
+                        should_remind = days_since >= 7
+                    else:
+                        should_remind = True
+
+                    if should_remind:
+                        crossed_above_date = prev.get("crossed_above_date", today_date.isoformat())
+                        days_total = (today_date - datetime.fromisoformat(crossed_above_date).date()).days
+                        reminded_etf_data = {
+                            "yield": prev.get("current_yield", 0),
+                            "price_jpy": prev.get("price_jpy", 0),
+                            "dividend_jpy": prev.get("dividend_jpy", 0),
+                            "last_trade_date": prev.get("last_trade_date"),
+                        }
+                        remind_embed = create_discord_embed(
+                            "reminder", ticker, reminded_etf_data,
+                            prev.get("threshold", 0),
+                            f"週次リマインダー（土曜日、継続{days_total}日目）※前営業日データ"
+                        )
+                        send_discord_notification(remind_embed)
+                        state[ticker]["last_reminded"] = today_date.isoformat()
+                        print(f"   📌 土曜日リマインダー送信（前回データ使用）")
+
+            # 土日はデータ取得失敗通知を送らない（市場休場のため想定内）
+            if not is_weekend:
+                error_embed = create_discord_embed(
+                    "error_etf_data",
+                    ticker,
+                    None,
+                    0,
+                    f"{ETFS[ticker]['name']} のデータ取得に失敗しました。yfinance APIの問題、またはティッカーシンボルの変更が考えられます。この銘柄の監視をスキップします。"
+                )
+                send_discord_notification(error_embed)
             continue
         
         current_yield = etf_data["yield"]
@@ -775,6 +809,8 @@ def main():
         new_state = {
             "status": new_status,
             "current_yield": current_yield,
+            "price_jpy": etf_data["price_jpy"],
+            "dividend_jpy": etf_data["dividend_jpy"],
             "threshold": threshold,
             "last_trade_date": last_trade_date,
             "last_year": current_year,  # 年度追跡用
