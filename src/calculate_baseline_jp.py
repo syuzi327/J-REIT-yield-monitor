@@ -83,7 +83,7 @@ def calculate_average_yield(ticker, start_year, end_year):
     
     print("\n--- 計算結果 ---")
     print(f"対象年数 (データ取得成功年数): {len(annual_yields)}年")
-    print(f"平均利回り (2009-2024): {average_yield:.2f}%")
+    print(f"平均利回り ({start_year}-{end_year}): {average_yield:.2f}%")
     
     print("\n--- config_jp.py 用の値 ---")
     print(f'"baseline_years": {len(annual_yields)},')

@@ -1,73 +1,104 @@
-# **GitHub Actions データ監視Bot**
+# J-REIT 配当利回り監視 Bot
 
-指定したデータソース（API、ウェブサイト、ライブラリなど）からデータを定期的に取得し、設定した閾値に基づいてDiscordへ通知を送信するBotのテンプレートです。
+GitHub Actions で毎日自動実行し、東証REIT指数ETF（1343.T）の配当利回りが閾値を超えたときに Discord へ通知する Bot です。
 
-## **概要**
+## 機能
 
-このプロジェクトは、GitHub Actionsを使用して監視スクリプトを毎日（あるいは指定した間隔で）定時に実行します。
+- **閾値超過通知**：配当利回りが閾値を上回った／下回ったタイミングで通知
+- **週次リマインダー**：閾値超過が続く間、毎週土曜日にリマインド通知
+- **Baseline 自動更新**：年越し時に前年の実績を取り込み、閾値を自動調整
+- **土日・祝日対応**：市場休場日はエラー通知を抑制。土曜日はキャッシュデータでリマインダーを送信
+- **状態の永続化**：実行結果を `data/state_jp.json` に保存し、GitHub Actions が自動コミット
 
-* **監視スクリプト**: src/monitor.py  
-  * データの取得、閾値の判定、通知の送信ロジックを記述します。  
-* **設定ファイル**: src/config.py  
-  * 監視対象のアイテム（APIエンドポイント、ティッカーシンボルなど）や、通知の閾値を定義します。  
-* **状態ファイル**: data/state.json  
-  * 前回の実行時の状態（ステータス、取得した値など）をJSON形式で保存します。
+## ディレクトリ構成
 
-## **主な機能**
+```
+.
+├── .github/workflows/
+│   └── monitor.yml              # GitHub Actions ワークフロー（毎日 JST 20:00 実行）
+├── data/
+│   └── state_jp.json            # 実行状態の保存ファイル（自動更新）
+├── src/
+│   ├── J-REIT_monitor.py        # メイン監視スクリプト
+│   ├── config_jp.py             # 監視対象・閾値の設定
+│   └── calculate_baseline_jp.py # Baseline 手動計算ユーティリティ
+├── requirements.txt
+└── README.md
+```
 
-* **定時自動実行**: GitHub Actionsのschedule（cron）機能により、設定した日時に自動でスクリプトを実行します。  
-* **状態の永続化**: 実行結果（例: status: "above"）をリポジトリ内のJSONファイル（data/state.json）にコミット＆プッシュすることで、前回の状態を記憶します。  
-* **閾値ベースの通知**: config.pyで定義した閾値と、取得した現在の値を比較します。  
-* **多彩なDiscord通知**:  
-  * 監視開始: Botの初回起動時。  
-  * 閾値上抜け: 現在の値が閾値を超えた時。  
-  * 閾値下抜け: 現在の値が閾値を下回った時。  
-  * 週次リマインダー: 閾値を超過した状態が続く場合、指定した曜日（例: 土曜日）にリマインド通知。  
-  * エラー通知: データ取得失敗時。  
-* **カスタマイズ可能**: src/monitor.py内のデータ取得ロジック（例: get\_data関数）を書き換えるだけで、株式（yfinance）、暗号資産API、気象APIなど、様々な監視に対応可能です。
+## セットアップ
 
-## **ディレクトリ構成**
+### 1. リポジトリをフォーク
 
-.  
-├── .github/workflows/  
-│   └── monitor.yml           \# GitHub Actions ワークフロー  
-├── data/  
-│   └── state.json            \# (自動生成) 状態保存ファイル  
-├── src/  
-│   ├── monitor.py            \# メインの監視スクリプト  
-│   └── config.py             \# 設定ファイル  
-├── requirements.txt          \# 依存ライブラリ (例: requests, yfinance)  
-└── README.md                 \# このファイル
+このリポジトリをご自身の GitHub アカウントにフォークします。
 
-## **セットアップ方法**
+### 2. Discord Webhook URL を取得
 
-1. **リポジトリのフォーク（Fork）**  
-   * このリポジトリをご自身のGitHubアカウントにフォークします。  
-2. **スクリプトのカスタマイズ**  
-   * src/monitor.py: get\_data関数など、監視したいデータを取得するロジックを実装します。（例: requestsでAPIを叩く、yfinanceで株価を取得する）  
-   * src/config.py: TARGETSディクショナリに、監視したい対象と閾値（threshold）を定義します。  
-   * requirements.txt: monitor.pyで必要なライブラリ（例: requests）を追加します。  
-3. **Discord Webhook URLの取得**  
-   * 通知を送りたいDiscordサーバーのチャンネルで、「チャンネルの編集」→「連携サービス」→「ウェブフック」→「新しいウェブフック」を作成します。  
-   * 作成したWebhookの「Webhook URLをコピー」します。  
-4. **GitHub Actions Secretの設定**  
-   * フォークしたご自身のGitHubリポジトリで、Settings \> Secrets and variables \> Actions に移動します。  
-   * New repository secret をクリックします。  
-   * **Name**: DISCORD\_WEBHOOK\_URL  
-   * **Value**: (コピーしたWebhook URL)  
-   * Add secret をクリックして保存します。
+通知先の Discord チャンネルで：
+「チャンネルの編集」→「連携サービス」→「ウェブフック」→「新しいウェブフック」を作成し、URL をコピーします。
 
-## **実行**
+### 3. GitHub Secret を設定
 
-セットアップが完了すると、.github/workflows/monitor.yml ファイルに定義された schedule (cron) に基づいて、GitHub Actionsが自動的にスクリプトを実行します。
+フォーク先リポジトリの **Settings → Secrets and variables → Actions** で以下を登録します。
 
-（実行時間は monitor.yml の cron 設定を編集することで変更可能です）
+| Name | Value |
+|------|-------|
+| `DISCORD_WEBHOOK_URL` | コピーした Webhook URL |
 
-また、Actionsタブからワークフローを選択し、Run workflow から手動で実行することも可能です。
+### 4. Actions を有効化
 
-## **仕組み（ロジック詳細）**
+フォーク直後は Actions が無効になっている場合があります。
+リポジトリの **Actions タブ** → "I understand my workflows, go ahead and enable them" をクリックして有効化してください。
 
-### **状態保存**
+これで毎日 JST 20:00 に自動実行されます。**Actions タブ → Run workflow** から手動実行も可能です。
 
-Botは実行のたびに、最新のステータス（例: above / below）を data/state.json に記録します。  
-GitHub Actionsは、実行後に変更された state.json を自動的にリポジトリにコミット＆プッシュします。これにより、Botは「前回の状態」を記憶し、状態が変化した時（例: below \-\> above）にのみ通知を送ることができます。
+## 設定変更
+
+`src/config_jp.py` を編集します。
+
+```python
+ETFS = {
+    "1343.T": {
+        "name": "NEXT FUNDS 東証REIT指数連動型上場投信",
+        "baseline_years": 12,       # Baseline の年数
+        "baseline_yield": 4.22,     # Baseline 利回り（%）
+        "baseline_year_end": 2024,  # Baseline の最終年
+        "threshold_offset": 0.0,    # 閾値 = baseline + offset
+    },
+}
+```
+
+- `threshold_offset` を上げると閾値が高くなり、通知が出にくくなります
+- 複数銘柄を監視したい場合は ETFS に追記します
+
+## Baseline の仕組み
+
+「Baseline」とは過去の平均利回りのことです。
+閾値は `baseline_yield + threshold_offset` で計算されます。
+
+- **初回起動時**：`config_jp.py` の値をそのまま使用
+- **年越し時**：前年の実績（分配金総額 ÷ 年末株価）を自動取得し、移動平均でBaselineを更新
+- **欠落年がある場合**：過去データを自動補完
+
+Baseline を手動で再計算したい場合は `src/calculate_baseline_jp.py` を使います。
+
+```bash
+python src/calculate_baseline_jp.py
+```
+
+## Discord 通知の種類
+
+| 種類 | タイミング | 色 |
+|------|-----------|-----|
+| 監視開始 | 初回起動時 | 青 |
+| 監視開始（閾値超過中） | 初回起動時点で超過 | オレンジ |
+| 閾値上抜け | below → above | 緑 |
+| 閾値下抜け | above → below | 赤 |
+| 週次リマインダー | 超過継続中の毎週土曜 | 黄 |
+| データ取得失敗 | 平日にAPIエラー | 赤 |
+| Baseline 更新 | 年越し時 | 紫 |
+
+## 使用ライブラリ
+
+- [yfinance](https://github.com/ranaroussi/yfinance) — 株価・配当データの取得
+- [requests](https://docs.python-requests.org/) — Discord Webhook への送信
