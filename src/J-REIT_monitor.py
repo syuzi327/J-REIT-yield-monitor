@@ -181,7 +181,6 @@ def get_year_average_from_history(ticker, year):
         float or None: 年間平均利回り
     """
     try:
-        
         etf = yf.Ticker(ticker)
         
         start = f"{year}-01-01"
@@ -726,7 +725,7 @@ def main():
         print(f"価格: ¥{etf_data['price_jpy']:,.0f}")
         
         # Baseline更新成功の通知（初回起動の欠落補完を含む）
-        if baseline_update_success and new_baseline_data:
+        if baseline_update_success:
             if is_initial:
                 # 初回起動時の欠落補完
                 update_message = f"初回起動時に {last_year}年以降のデータ欠落を検知し、自動補完してBaselineを更新しました。"
