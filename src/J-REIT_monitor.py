@@ -461,7 +461,7 @@ def should_notify(ticker, current_yield, threshold, state, etf_data):
     return False, None, "通知不要"
 
 
-def create_discord_embed(notification_type, ticker, etf_data, threshold, reason, baseline_data=None, old_baseline=None):
+def create_discord_embed(notification_type, ticker, etf_data, threshold, reason, baseline_data=None, old_baseline=None, comparison_data=None):
     """Discord埋め込みメッセージを作成 (円建て専用)"""
     
     # 色の設定
@@ -585,6 +585,43 @@ def create_discord_embed(notification_type, ticker, etf_data, threshold, reason,
                 "inline": False
             })
     
+    # リマインダーの比較フィールド
+    if notification_type == "reminder" and comparison_data:
+        current_yield_val = etf_data["yield"]
+        current_price_val = etf_data["price_jpy"]
+        crossed_above_yield = comparison_data.get("crossed_above_yield")
+        crossed_above_price = comparison_data.get("crossed_above_price_jpy")
+        last_reminded_yield = comparison_data.get("last_reminded_yield")
+        last_reminded_price = comparison_data.get("last_reminded_price_jpy")
+
+        if crossed_above_yield is not None:
+            yd = current_yield_val - crossed_above_yield
+            pd = current_price_val - crossed_above_price
+            fields.append({
+                "name": "📈 上抜け時比",
+                "value": (
+                    f"利回り {'+'if yd>=0 else ''}{yd:.2f}%"
+                    f" ({crossed_above_yield:.2f}% → {current_yield_val:.2f}%)\n"
+                    f"価格 {'+'if pd>=0 else ''}¥{pd:,.0f}"
+                    f" (¥{crossed_above_price:,.0f} → ¥{current_price_val:,.0f})"
+                ),
+                "inline": False,
+            })
+
+        if last_reminded_yield is not None and last_reminded_yield != crossed_above_yield:
+            yd = current_yield_val - last_reminded_yield
+            pd = current_price_val - last_reminded_price
+            fields.append({
+                "name": "📅 前週比",
+                "value": (
+                    f"利回り {'+'if yd>=0 else ''}{yd:.2f}%"
+                    f" ({last_reminded_yield:.2f}% → {current_yield_val:.2f}%)\n"
+                    f"価格 {'+'if pd>=0 else ''}¥{pd:,.0f}"
+                    f" (¥{last_reminded_price:,.0f} → ¥{current_price_val:,.0f})"
+                ),
+                "inline": False,
+            })
+
     # 価格情報 (JPYのみ)
     fields.extend([
         {
@@ -672,13 +709,22 @@ def main():
                             "dividend_jpy": prev.get("dividend_jpy", 0),
                             "last_trade_date": prev.get("last_trade_date"),
                         }
+                        fallback_comparison = {
+                            "crossed_above_yield": prev.get("crossed_above_yield"),
+                            "crossed_above_price_jpy": prev.get("crossed_above_price_jpy"),
+                            "last_reminded_yield": prev.get("last_reminded_yield"),
+                            "last_reminded_price_jpy": prev.get("last_reminded_price_jpy"),
+                        }
                         remind_embed = create_discord_embed(
                             "reminder", ticker, reminded_etf_data,
                             prev.get("threshold", 0),
-                            f"週次リマインダー（土曜日、継続{days_total}日目）※前営業日データ"
+                            f"週次リマインダー（土曜日、継続{days_total}日目）※前営業日データ",
+                            comparison_data=fallback_comparison
                         )
                         send_discord_notification(remind_embed)
                         state[ticker]["last_reminded"] = today_date.isoformat()
+                        state[ticker]["last_reminded_yield"] = prev.get("current_yield")
+                        state[ticker]["last_reminded_price_jpy"] = prev.get("price_jpy")
                         print(f"   📌 土曜日リマインダー送信（前回データ使用）")
 
             # 土日はデータ取得失敗通知を送らない（市場休場のため想定内）
@@ -775,9 +821,18 @@ def main():
             send_discord_notification(initial_embed)
         elif should_send:
             # 通常の通知（上抜け・下抜け・リマインダー）
+            comparison_data = None
+            if notification_type == "reminder" and ticker in state:
+                prev = state[ticker]
+                comparison_data = {
+                    "crossed_above_yield": prev.get("crossed_above_yield"),
+                    "crossed_above_price_jpy": prev.get("crossed_above_price_jpy"),
+                    "last_reminded_yield": prev.get("last_reminded_yield"),
+                    "last_reminded_price_jpy": prev.get("last_reminded_price_jpy"),
+                }
             embed = create_discord_embed(
-                notification_type, ticker, etf_data, 
-                threshold, reason
+                notification_type, ticker, etf_data,
+                threshold, reason, comparison_data=comparison_data
             )
             send_discord_notification(embed)
         
@@ -807,6 +862,10 @@ def main():
             new_state["last_notified"] = prev_state.get("last_notified")
             new_state["last_reminded"] = prev_state.get("last_reminded")
             new_state["crossed_above_date"] = prev_state.get("crossed_above_date")
+            new_state["crossed_above_yield"] = prev_state.get("crossed_above_yield")
+            new_state["crossed_above_price_jpy"] = prev_state.get("crossed_above_price_jpy")
+            new_state["last_reminded_yield"] = prev_state.get("last_reminded_yield")
+            new_state["last_reminded_price_jpy"] = prev_state.get("last_reminded_price_jpy")
         
         # 通知を送った場合の更新（初回起動も含む）
         if should_send or notification_type in ["initial", "initial_above"]:
@@ -814,16 +873,30 @@ def main():
             
             if notification_type == "crossed_above":
                 new_state["crossed_above_date"] = today
+                new_state["crossed_above_yield"] = current_yield
+                new_state["crossed_above_price_jpy"] = etf_data["price_jpy"]
                 new_state["last_reminded"] = today
+                new_state["last_reminded_yield"] = current_yield
+                new_state["last_reminded_price_jpy"] = etf_data["price_jpy"]
             elif notification_type == "initial_above":
                 # 初回aboveの場合もリマインダー設定
                 new_state["crossed_above_date"] = today
+                new_state["crossed_above_yield"] = current_yield
+                new_state["crossed_above_price_jpy"] = etf_data["price_jpy"]
                 new_state["last_reminded"] = today
+                new_state["last_reminded_yield"] = current_yield
+                new_state["last_reminded_price_jpy"] = etf_data["price_jpy"]
             elif notification_type == "reminder":
                 new_state["last_reminded"] = today
+                new_state["last_reminded_yield"] = current_yield
+                new_state["last_reminded_price_jpy"] = etf_data["price_jpy"]
             elif notification_type == "crossed_below":
                 new_state["crossed_above_date"] = None
+                new_state["crossed_above_yield"] = None
+                new_state["crossed_above_price_jpy"] = None
                 new_state["last_reminded"] = None
+                new_state["last_reminded_yield"] = None
+                new_state["last_reminded_price_jpy"] = None
         
         state[ticker] = new_state
         print()
