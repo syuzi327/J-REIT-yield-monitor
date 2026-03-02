@@ -185,11 +185,12 @@ def get_year_average_from_history(ticker, year):
         
         start = f"{year}-01-01"
         end = f"{year}-12-31"
-        
+        end_for_history = f"{year+1}-01-01"
+
         print(f"     📊 {year}年のデータを取得中... ({start} ～ {end})")
-        
-        # 履歴データ取得
-        history = etf.history(start=start, end=end)
+
+        # 履歴データ取得（end は翌年1/1を指定して年末最終営業日を確実に含める）
+        history = etf.history(start=start, end=end_for_history)
         
         if history.empty:
             print(f"     ⚠️ 履歴データ取得失敗")
@@ -300,19 +301,20 @@ def update_baseline(ticker, last_year, state, config, is_initial=False):
 
     # 欠落データの補完（初回起動または複数年飛ばした場合）
     years_gap = current_year - start_year
+    last_successful_year = None
     if years_gap > 0:
         if years_gap > 1 or is_initial:
             if is_initial:
                 print(f"   ⚠️ {years_gap}年分のデータが欠落 → 自動補完を試行")
             else:
                 print(f"   ⚠️ {years_gap - 1}年分のデータが欠落 → 自動補完を試行")
-        
+
         # 欠落した年を順番に処理
         for year in range(start_year, current_year):
             print(f"   📅 {year}年のデータを補完中...")
-            
+
             year_avg = get_year_average_from_history(ticker, year)
-            
+
             if year_avg is not None:
                 # baselineを更新
                 new_baseline_yield = (baseline_yield * baseline_years + year_avg) / (baseline_years + 1)
@@ -320,13 +322,13 @@ def update_baseline(ticker, last_year, state, config, is_initial=False):
                 baseline_yield = new_baseline_yield
                 baseline_years = new_baseline_years
                 print(f"     ✅ {year}年: {year_avg:.2f}% → Baseline更新: {baseline_yield:.2f}% ({baseline_years}年)")
-                
+
                 # 最後に成功した年を記録
                 last_successful_year = year
                 last_year_avg = year_avg
             else:
                 print(f"     ⚠️ {year}年: データ取得失敗 - スキップ")
-                
+
                 # 欠落年のエラー通知
                 error_embed = create_discord_embed(
                     "error_baseline",
@@ -337,11 +339,11 @@ def update_baseline(ticker, last_year, state, config, is_initial=False):
                     baseline_data={"years": baseline_years, "yield": round(baseline_yield, 2)}
                 )
                 send_discord_notification(error_embed)
-    
+
     # 更新結果を返す（最後に処理した年の情報を含む）
     if is_initial:
         # 全年データ取得失敗の場合はNoneを返す（誤った「更新成功」通知を防ぐ）
-        if 'last_successful_year' not in locals():
+        if last_successful_year is None:
             print(f"   ⚠️ 全年のデータ取得に失敗 - baseline更新をスキップ")
             return None
         return {
@@ -393,10 +395,13 @@ def save_state(state):
         state_path = script_dir.parent / STATE_FILE
     else:
         state_path = Path(STATE_FILE)
-    
+
     state_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(state_path, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
+    try:
+        with open(state_path, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"❌ state_jp.json保存エラー: {e}")
 
 
 def should_notify(ticker, current_yield, threshold, state, etf_data):
@@ -868,7 +873,7 @@ def main():
             new_state["last_reminded_price_jpy"] = prev_state.get("last_reminded_price_jpy")
         
         # 通知を送った場合の更新（初回起動も含む）
-        if should_send or notification_type in ["initial", "initial_above"]:
+        if should_send:
             new_state["last_notified"] = today
             
             if notification_type == "crossed_above":
