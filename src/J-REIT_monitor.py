@@ -102,6 +102,13 @@ def get_etf_data(ticker):
             print(f"{ticker} 履歴データなし")
             return None
 
+        # Volume=0のエントリを除外（週末実行時に翌営業日の幽霊エントリが混入する対策）
+        history = history[history["Volume"] > 0]
+
+        if history.empty:
+            print(f"{ticker} 有効な取引データなし（Volume=0のみ）")
+            return None
+
         # 最新の価格
         current_price = history["Close"].iloc[-1]
         last_trade_date = history.index[-1].date().isoformat()
