@@ -84,9 +84,6 @@ def _check_saturday_reminder(prev_state, today):
     crossed_above_date = prev_state.get("crossed_above_date")
     days_above = (today - iso_to_date(crossed_above_date)).days if crossed_above_date else 0
 
-    last_reminded = prev_state.get("last_reminded")
-    if last_reminded:
-        return (today - iso_to_date(last_reminded)).days >= 7, days_above
     return True, days_above
 
 
