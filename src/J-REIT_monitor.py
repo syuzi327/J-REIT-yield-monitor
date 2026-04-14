@@ -118,6 +118,9 @@ def get_etf_data(ticker):
                 one_year_ago = history.index[-1] - timedelta(days=365)
                 recent_dividends = dividends[dividends.index > one_year_ago]
                 annual_dividend = recent_dividends.sum()
+                # yfinanceの新バージョンではSeriesが返る場合があるためスカラーに変換
+                if hasattr(annual_dividend, 'squeeze'):
+                    annual_dividend = float(annual_dividend.squeeze())
                 dividend_yield = (annual_dividend / current_price) * 100
             else:
                 # 配当データがない場合はinfoから取得（fallback）
