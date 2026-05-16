@@ -114,9 +114,12 @@ def get_etf_data(ticker):
         try:
             dividends = etf.dividends
             if not dividends.empty:
-                # 過去1年（365日）の配当合計 = TTM配当
-                one_year_ago = history.index[-1] - timedelta(days=365)
-                recent_dividends = dividends[dividends.index > one_year_ago]
+                # 400日ウィンドウで取得して直近4回分に絞る
+                # （365日境界で四半期配当が脱落する誤検知を防ぐ）
+                four_hundred_days_ago = history.index[-1] - timedelta(days=400)
+                recent_dividends = dividends[dividends.index > four_hundred_days_ago]
+                if len(recent_dividends) > 4:
+                    recent_dividends = recent_dividends.iloc[-4:]
                 annual_dividend = recent_dividends.sum()
                 # yfinanceの新バージョンではSeriesが返る場合があるためスカラーに変換
                 if hasattr(annual_dividend, 'squeeze'):
