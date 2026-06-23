@@ -2,10 +2,10 @@
   "1343.T": {
     "status": "above",
     "current_yield": 4.84,
-    "price_jpy": 1906.0,
+    "price_jpy": 1905.0,
     "dividend_jpy": 92.2,
     "threshold": 4.2,
-    "last_trade_date": "2026-06-22",
+    "last_trade_date": "2026-06-23",
     "last_year": 2026,
     "baseline": {
       "years": 13,
