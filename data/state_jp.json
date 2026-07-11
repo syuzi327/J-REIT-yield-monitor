@@ -11,13 +11,13 @@
       "years": 13,
       "yield": 4.2
     },
-    "last_checked": "2026-07-10",
-    "last_notified": "2026-07-04",
-    "last_reminded": "2026-07-04",
+    "last_checked": "2026-07-11",
+    "last_notified": "2026-07-11",
+    "last_reminded": "2026-07-11",
     "crossed_above_date": "2026-05-13",
     "crossed_above_yield": 4.68,
     "crossed_above_price_jpy": 1968.5,
-    "last_reminded_yield": 4.66,
-    "last_reminded_price_jpy": 1978.0
+    "last_reminded_yield": 4.67,
+    "last_reminded_price_jpy": 1976.0
   }
 }
