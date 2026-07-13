@@ -5,13 +5,13 @@
     "price_jpy": 1976.0,
     "dividend_jpy": 92.2,
     "threshold": 4.2,
-    "last_trade_date": "2026-07-10",
+    "last_trade_date": "2026-07-13",
     "last_year": 2026,
     "baseline": {
       "years": 13,
       "yield": 4.2
     },
-    "last_checked": "2026-07-11",
+    "last_checked": "2026-07-13",
     "last_notified": "2026-07-11",
     "last_reminded": "2026-07-11",
     "crossed_above_date": "2026-05-13",
