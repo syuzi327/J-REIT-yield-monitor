@@ -5,13 +5,13 @@
     "price_jpy": NaN,
     "dividend_jpy": 92.9,
     "threshold": 4.2,
-    "last_trade_date": "2026-08-31",
+    "last_trade_date": "2026-09-01",
     "last_year": 2026,
     "baseline": {
       "years": 13,
       "yield": 4.2
     },
-    "last_checked": "2026-09-01",
+    "last_checked": "2026-09-02",
     "last_notified": "2026-08-22",
     "last_reminded": "2026-08-22",
     "crossed_above_date": "2026-05-13",
