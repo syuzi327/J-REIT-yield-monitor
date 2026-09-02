@@ -1,23 +1,23 @@
 {
   "1343.T": {
-    "status": "below",
-    "current_yield": NaN,
-    "price_jpy": NaN,
+    "status": "above",
+    "current_yield": 4.81,
+    "price_jpy": 1931.5,
     "dividend_jpy": 92.9,
     "threshold": 4.2,
-    "last_trade_date": "2026-09-01",
+    "last_trade_date": "2026-09-02",
     "last_year": 2026,
     "baseline": {
       "years": 13,
       "yield": 4.2
     },
     "last_checked": "2026-09-02",
-    "last_notified": "2026-08-22",
-    "last_reminded": "2026-08-22",
-    "crossed_above_date": "2026-05-13",
-    "crossed_above_yield": 4.68,
-    "crossed_above_price_jpy": 1968.5,
-    "last_reminded_yield": 4.79,
-    "last_reminded_price_jpy": 1938.0
+    "last_notified": "2026-09-02",
+    "last_reminded": "2026-09-02",
+    "crossed_above_date": "2026-09-02",
+    "crossed_above_yield": 4.81,
+    "crossed_above_price_jpy": 1931.5,
+    "last_reminded_yield": 4.81,
+    "last_reminded_price_jpy": 1931.5
   }
 }
