@@ -13,6 +13,7 @@ ETF配当利回り監視Bot（1343 円建て専用）- 最終版
 import os
 import sys
 import json
+import math
 import shutil
 import time
 import yfinance as yf
@@ -99,16 +100,23 @@ def get_etf_data(ticker):
             print(f"{ticker} 履歴データなし")
             return None
 
-        # Volume=0のエントリを除外（週末実行時に翌営業日の幽霊エントリが混入する対策）
-        history = history[history["Volume"] > 0]
+        # Volume=0・終値欠損のエントリを除外
+        # （週末実行時の幽霊エントリ対策 + yfinance側の一時的なClose欠損対策）
+        history = history[(history["Volume"] > 0) & history["Close"].notna()]
 
         if history.empty:
-            print(f"{ticker} 有効な取引データなし（Volume=0のみ）")
+            print(f"{ticker} 有効な取引データなし（Volume=0またはClose欠損）")
             return None
 
         # 最新の価格
-        current_price = history["Close"].iloc[-1]
+        current_price = float(history["Close"].iloc[-1])
         last_trade_date = history.index[-1].date().isoformat()
+
+        # 価格が異常値ならデータ取得失敗として扱う
+        # （NaNのままstateに書き込むと status が "below" に落ちて継続日数がリセットされる）
+        if not math.isfinite(current_price) or current_price <= 0:
+            print(f"{ticker} 価格が異常値: {current_price}")
+            return None
 
         # 配当情報を取得（TTM方式）
         try:
@@ -134,6 +142,11 @@ def get_etf_data(ticker):
         except Exception:
             dividend_yield = 0
             annual_dividend = 0
+
+        # 利回りが異常値ならデータ取得失敗として扱う
+        if not math.isfinite(dividend_yield):
+            print(f"{ticker} 利回りが異常値: {dividend_yield}")
+            return None
 
         return {
             "yield": round(dividend_yield, 2),
